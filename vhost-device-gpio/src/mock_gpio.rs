@@ -3,6 +3,12 @@
 // Copyright 2023 Linaro Ltd. All Rights Reserved.
 //          Viresh Kumar <viresh.kumar@linaro.org>
 //
+// Modified in 2024 by Wojciech M. Zabolotny
+//   wzab01@gmail.com or wojciech.zabolotny@pw.edu.pl
+//
+// Changes for communication with the GPIO GUI 
+// accessible via JSON RPC
+//
 // SPDX-License-Identifier: Apache-2.0 or BSD-3-Clause
 
 use log::info;
