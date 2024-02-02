@@ -11,6 +11,21 @@ use std::sync::RwLock;
 use crate::gpio::{Error, GpioDevice, GpioState, Result};
 use crate::virtio_gpio::*;
 
+use jsonrpc::Client;
+use jsonrpc::simple_http::{self, SimpleHttpTransport};
+use serde_json::json;
+use serde_json::value::to_raw_value;
+
+fn client() -> std::result::Result<Client,simple_http::Error> {
+    let url = "http://127.0.0.1:8001";
+    let t = SimpleHttpTransport::builder()
+        .url(url)?
+        .build();
+
+    Ok(Client::with_transport(t))
+}
+
+
 #[derive(Debug)]
 pub(crate) struct MockGpioDevice {
     ngpio: u16,
@@ -24,17 +39,34 @@ pub(crate) struct MockGpioDevice {
     set_value_result: Result<()>,
     set_irq_type_result: Result<()>,
     pub(crate) wait_for_irq_result: Result<bool>,
+    pub rpc_client: Client,
 }
 
 impl MockGpioDevice {
     pub(crate) fn new(ngpio: u16) -> Self {
-        let mut gpio_names = Vec::with_capacity(ngpio.into());
-        for i in 0..ngpio {
-            gpio_names.push(format!("dummy{}", i));
+        let rpc_client = client().unwrap();
+        let mut request = rpc_client.build_request("num_gpios", None);
+        let mut response = rpc_client.send_request(request).expect("send_request failed");
+        //self.ngpio = (*response.result.unwrap()).from_str();
+        println!("{:?}",response);
+        let mut resp2 : serde_json::Value = serde_json::from_str((*response.result.unwrap()).get()).unwrap(); 
+        println!("{:?}",resp2);
+        let ngpio2 : u16 = resp2[1].as_u64().unwrap().try_into().unwrap() ;
+        let mut gpio_names = Vec::<String>::new();
+        for i in 0..ngpio2 {
+            let mut param = json!([i]);
+            let mut raw_value = Some(to_raw_value(&param).unwrap());
+            let mut request = rpc_client.build_request("gpio_name", raw_value.as_deref());
+            let mut response = rpc_client.send_request(request).expect("send_request failed");
+            println!("{:?}",response);
+            let mut resp2 : serde_json::Value = serde_json::from_str((*response.result.unwrap()).get()).unwrap(); 
+            println!("{:?}",resp2);
+	    let mut name : String = resp2[1].as_str().unwrap().into(); 
+            gpio_names.push(name);
         }
 
         Self {
-            ngpio,
+            ngpio: ngpio2,
             gpio_names,
             state: RwLock::new(vec![
                 GpioState {
@@ -42,7 +74,7 @@ impl MockGpioDevice {
                     val: None,
                     irq_type: VIRTIO_GPIO_IRQ_TYPE_NONE,
                 };
-                ngpio.into()
+                ngpio2.into()
             ]),
             num_gpios_result: Ok(0),
             gpio_name_result: Ok("".to_string()),
@@ -52,6 +84,7 @@ impl MockGpioDevice {
             set_value_result: Ok(()),
             set_irq_type_result: Ok(()),
             wait_for_irq_result: Ok(true),
+            rpc_client,
         }
     }
 }
@@ -68,7 +101,6 @@ impl GpioDevice for MockGpioDevice {
         if self.num_gpios_result.is_err() {
             return self.num_gpios_result;
         }
-
         Ok(self.ngpio)
     }
 
@@ -86,7 +118,14 @@ impl GpioDevice for MockGpioDevice {
         if self.direction_result.is_err() {
             return self.direction_result;
         }
-
+        {
+          let param = json!([11,{"rr":"akuku","tr":[34,21]}]);
+	  let raw_value = Some(to_raw_value(&param).unwrap());
+          let request = self.rpc_client.build_request("test", raw_value.as_deref());
+          println!("{:?}",request);
+          let response = self.rpc_client.send_request(request).expect("send_request failed");
+          println!("{:?}",response)
+        }
         Ok(self.state.read().unwrap()[gpio as usize].dir)
     }
 
