@@ -12,7 +12,7 @@
 // SPDX-License-Identifier: Apache-2.0 or BSD-3-Clause
 
 use log::info;
-use std::sync::RwLock;
+//use std::sync::RwLock;
 
 use crate::gpio::{Error, GpioDevice, GpioState, Result};
 use crate::virtio_gpio::*;
@@ -45,7 +45,7 @@ fn call(cli : &Client, fun : &str, param : serde_json::Value ) -> serde_json::Va
 pub(crate) struct MockGpioDevice {
     ngpio: u16,
     pub(crate) gpio_names: Vec<String>,
-    state: RwLock<Vec<GpioState>>,
+    //state: RwLock<Vec<GpioState>>,
     pub num_gpios_result: Result<u16>,
     pub gpio_name_result: Result<String>,
     pub direction_result: Result<u8>,
@@ -58,31 +58,31 @@ pub(crate) struct MockGpioDevice {
 }
 
 impl MockGpioDevice {
-    pub(crate) fn new(ngpio: u16) -> Self {
+    pub(crate) fn new(_ngpio: u16) -> Self {
         let rpc_client = client().unwrap();
-        let mut resp2 = call(&rpc_client,"num_gpios",json!([""]));
-        println!("{:?}",resp2);
-        let ngpio2 : u16 = resp2[1].as_u64().unwrap().try_into().unwrap() ;
+        let resp = call(&rpc_client,"num_gpios",json!([""]));
+        println!("{:?}",resp);
+        let ngpio2 : u16 = resp[1].as_u64().unwrap().try_into().unwrap() ;
         let mut gpio_names = Vec::<String>::new();
         for i in 0..ngpio2 {
-            let mut param = json!([i]);
-            let mut resp2 = call(&rpc_client,"gpio_name",param);
-            println!("{:?}",resp2);
-	    let mut name : String = resp2[1].as_str().unwrap().into(); 
+            let param = json!([i]);
+            let resp = call(&rpc_client,"gpio_name",param);
+            println!("{:?}",resp);
+	    let name : String = resp[1].as_str().unwrap().into(); 
             gpio_names.push(name);
         }
 
         Self {
             ngpio: ngpio2,
             gpio_names,
-            state: RwLock::new(vec![
+            /*state: RwLock::new(vec![
                 GpioState {
                     dir: VIRTIO_GPIO_DIRECTION_NONE,
                     val: None,
                     irq_type: VIRTIO_GPIO_IRQ_TYPE_NONE,
                 };
                 ngpio2.into()
-            ]),
+            ]),*/
             num_gpios_result: Ok(0),
             gpio_name_result: Ok("".to_string()),
             direction_result: Ok(0),
@@ -125,15 +125,10 @@ impl GpioDevice for MockGpioDevice {
         if self.direction_result.is_err() {
             return self.direction_result;
         }
-        {
-          let param = json!([11,{"rr":"akuku","tr":[34,21]}]);
-	  let raw_value = Some(to_raw_value(&param).unwrap());
-          let request = self.rpc_client.build_request("test", raw_value.as_deref());
-          println!("{:?}",request);
-          let response = self.rpc_client.send_request(request).expect("send_request failed");
-          println!("{:?}",response)
-        }
-        Ok(self.state.read().unwrap()[gpio as usize].dir)
+	let resp = call(&self.rpc_client,"direction",json!([gpio]));
+        println!("{:?}",resp);
+        let dir : u8 = resp[1].as_u64().unwrap().try_into().unwrap() ;
+        return Ok(dir);
     }
 
     fn set_direction(&self, gpio: u16, dir: u8, value: u32) -> Result<()> {
@@ -145,29 +140,20 @@ impl GpioDevice for MockGpioDevice {
         if self.set_direction_result.is_err() {
             return self.set_direction_result;
         }
-
-        self.state.write().unwrap()[gpio as usize].dir = dir;
-        self.state.write().unwrap()[gpio as usize].val = match dir {
-            VIRTIO_GPIO_DIRECTION_NONE => None,
-            VIRTIO_GPIO_DIRECTION_IN => self.state.read().unwrap()[gpio as usize].val,
-            VIRTIO_GPIO_DIRECTION_OUT => Some(value as u16),
-
-            _ => return Err(Error::GpioDirectionInvalid(dir as u32)),
-        };
-
-        Ok(())
+	let resp = call(&self.rpc_client,"set_direction",json!([gpio,dir,value]));
+        println!("{:?}",resp);
+        return Ok(());
     }
 
     fn value(&self, gpio: u16) -> Result<u8> {
         if self.value_result.is_err() {
             return self.value_result;
         }
-
-        if let Some(val) = self.state.read().unwrap()[gpio as usize].val {
-            Ok(val as u8)
-        } else {
-            Err(Error::GpioCurrentValueInvalid)
-        }
+	let resp = call(&self.rpc_client,"value",json!([gpio]));
+        println!("{:?}",resp);
+        let val : u8 = resp[1].as_u64().unwrap().try_into().unwrap() ;
+        return Ok(val);
+	
     }
 
     fn set_value(&self, gpio: u16, value: u32) -> Result<()> {
@@ -175,13 +161,12 @@ impl GpioDevice for MockGpioDevice {
             "gpio {} set value to {}",
             self.gpio_names[gpio as usize], value
         );
-
         if self.set_value_result.is_err() {
             return self.set_value_result;
         }
-
-        self.state.write().unwrap()[gpio as usize].val = Some(value as u16);
-        Ok(())
+	let resp = call(&self.rpc_client,"set_value",json!([gpio,value]));
+        println!("{:?}",resp);
+        return Ok(());
     }
 
     fn set_irq_type(&self, gpio: u16, value: u16) -> Result<()> {
@@ -193,15 +178,19 @@ impl GpioDevice for MockGpioDevice {
         if self.set_irq_type_result.is_err() {
             return self.set_irq_type_result;
         }
-
-        Ok(())
+	let resp = call(&self.rpc_client,"set_irq_type",json!([gpio,value]));
+        println!("{:?}",resp);
+        return Ok(());
     }
 
-    fn wait_for_interrupt(&self, _gpio: u16) -> Result<bool> {
+    fn wait_for_interrupt(&self, gpio: u16) -> Result<bool> {
         if self.wait_for_irq_result.is_err() {
             return self.wait_for_irq_result;
         }
-
-        Ok(true)
+	let resp = call(&self.rpc_client,"wait_for_interrupt",json!([gpio]));
+        println!("{:?}",resp);
+        let val : bool = resp[1].as_u64().unwrap() > 0;
+        return Ok(val);
     }
 }
+
