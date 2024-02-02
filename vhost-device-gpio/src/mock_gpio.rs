@@ -31,6 +31,15 @@ fn client() -> std::result::Result<Client,simple_http::Error> {
     Ok(Client::with_transport(t))
 }
 
+fn call(cli : &Client, fun : &str, param : serde_json::Value ) -> serde_json::Value
+{
+   let raw_value = Some(to_raw_value(&param).unwrap());
+   let request = cli.build_request(fun, raw_value.as_deref());
+   let response = cli.send_request(request).expect("send_request failed");
+   println!("{:?}",response);
+   let resp2 : serde_json::Value = serde_json::from_str((*response.result.unwrap()).get()).unwrap(); 
+   return resp2;
+}
 
 #[derive(Debug)]
 pub(crate) struct MockGpioDevice {
@@ -51,21 +60,13 @@ pub(crate) struct MockGpioDevice {
 impl MockGpioDevice {
     pub(crate) fn new(ngpio: u16) -> Self {
         let rpc_client = client().unwrap();
-        let mut request = rpc_client.build_request("num_gpios", None);
-        let mut response = rpc_client.send_request(request).expect("send_request failed");
-        //self.ngpio = (*response.result.unwrap()).from_str();
-        println!("{:?}",response);
-        let mut resp2 : serde_json::Value = serde_json::from_str((*response.result.unwrap()).get()).unwrap(); 
+        let mut resp2 = call(&rpc_client,"num_gpios",json!([""]));
         println!("{:?}",resp2);
         let ngpio2 : u16 = resp2[1].as_u64().unwrap().try_into().unwrap() ;
         let mut gpio_names = Vec::<String>::new();
         for i in 0..ngpio2 {
             let mut param = json!([i]);
-            let mut raw_value = Some(to_raw_value(&param).unwrap());
-            let mut request = rpc_client.build_request("gpio_name", raw_value.as_deref());
-            let mut response = rpc_client.send_request(request).expect("send_request failed");
-            println!("{:?}",response);
-            let mut resp2 : serde_json::Value = serde_json::from_str((*response.result.unwrap()).get()).unwrap(); 
+            let mut resp2 = call(&rpc_client,"gpio_name",param);
             println!("{:?}",resp2);
 	    let mut name : String = resp2[1].as_str().unwrap().into(); 
             gpio_names.push(name);
