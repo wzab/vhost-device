@@ -1,6 +1,7 @@
 import gevent
 import gevent.pywsgi
 import gevent.queue
+import threading
 import time
 
 from tinyrpc.server.gevent import RPCServerGreenlets
@@ -79,12 +80,15 @@ def set_irq_type(n,v):
 
 @dispatcher.public
 def wait_for_interrupt(n):
-    if irq_type == 1: # RISING
-       wait(gpios[n].wait_rise)
-    if irq_type == 2: # FALLING
-       wait(gpios[n].wait_fall)
-    if irq_type == 3: # BOTH
-       wait(gpios[n].wait_both)
+    if gpios[n].irq_type == 1: # RISING
+       with gpios[n].wait_rise:
+           gpios[n].wait_rise.wait()
+    if gpios[n].irq_type == 2: # FALLING
+       with gpios[n].wait_fall:
+          gpios[n].wait_fall.wait()
+    if gpios[n].irq_type == 3: # BOTH
+       with gpios[n].wait_both:
+           gpios[n].wait_both.wait()
     return ("OK",1)
 
 def start(change_handler):
