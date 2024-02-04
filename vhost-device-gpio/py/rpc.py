@@ -27,6 +27,9 @@ class gpio:
       self.name = name
       self.dir = 0
       self.val = 0
+      self.wait_rise = threading.Condition()
+      self.wait_fall = threading.Condition()
+      self.wait_both = threading.Condition()
       self.control = control
 gpios = {}
 
@@ -76,7 +79,12 @@ def set_irq_type(n,v):
 
 @dispatcher.public
 def wait_for_interrupt(n):
-    time.sleep(2)
+    if irq_type == 1: # RISING
+       wait(gpios[n].wait_rise)
+    if irq_type == 2: # FALLING
+       wait(gpios[n].wait_fall)
+    if irq_type == 3: # BOTH
+       wait(gpios[n].wait_both)
     return ("OK",1)
 
 def start(change_handler):

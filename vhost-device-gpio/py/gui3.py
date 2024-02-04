@@ -48,8 +48,15 @@ def send_bounced_change(nof_pin,state):
             state = 1 - state
 
 def send_change(nof_pin, state):
+    do_irq = (rpc.gpios[nof_pin].val != state)
     rpc.gpios[nof_pin].val = state
-    
+    if do_irq:
+        rpc.gpios[nof_pin].wait_both.notify_all()
+        if state == 1:
+            rpc.gpios[nof_pin].wait_rise.notify_all()
+        if state == 0:
+            rpc.gpios[nof_pin].wait_rise.notify_all()
+
 def recv_change(nof_pin, s):
     GLib.idle_add(MyControls[nof_pin].change_state,s)
         
