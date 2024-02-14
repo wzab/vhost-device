@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y \
  device-tree-compiler \
  cmake ccache ninja-build \
  python3-posix-ipc \
+ python3-dev \
  libncurses-dev unzip bc mc \
  libasound2-dev libpulse-dev \
  vde2 \
