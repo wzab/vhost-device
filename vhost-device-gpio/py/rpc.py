@@ -82,13 +82,16 @@ def set_irq_type(n,v):
 def wait_for_interrupt(n):
     if gpios[n].irq_type == 1: # RISING
        with gpios[n].wait_rise:
-           gpios[n].wait_rise.wait()
+           if not gpios[n].wait_rise.wait(timeout=1):
+               return ("OK",0)
     if gpios[n].irq_type == 2: # FALLING
        with gpios[n].wait_fall:
-          gpios[n].wait_fall.wait()
+          if not gpios[n].wait_fall.wait(timeout=1):
+               return ("OK",0)
     if gpios[n].irq_type == 3: # BOTH
        with gpios[n].wait_both:
-           gpios[n].wait_both.wait()
+          if not gpios[n].wait_both.wait(timeout=1):
+               return ("OK",0)
     return ("OK",1)
 
 def start(change_handler):
