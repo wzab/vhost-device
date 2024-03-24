@@ -22,7 +22,7 @@ use jsonrpc::simple_http::{self, SimpleHttpTransport};
 use serde_json::json;
 use serde_json::value::to_raw_value;
 
-let debug_print = false;
+static debug_print:bool = false;
 
 fn client() -> std::result::Result<Client,simple_http::Error> {
     let url = "http://127.0.0.1:8001";
