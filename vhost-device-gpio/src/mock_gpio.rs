@@ -22,7 +22,7 @@ use jsonrpc::simple_http::{self, SimpleHttpTransport};
 use serde_json::json;
 use serde_json::value::to_raw_value;
 
-static debug_print:bool = false;
+static DEBUG_PRINT:bool q= false;
 
 fn client() -> std::result::Result<Client,simple_http::Error> {
     let url = "http://127.0.0.1:8001";
@@ -38,7 +38,7 @@ fn call(cli : &Client, fun : &str, param : serde_json::Value ) -> serde_json::Va
    let raw_value = Some(to_raw_value(&param).unwrap());
    let request = cli.build_request(fun, raw_value.as_deref());
    let response = cli.send_request(request).expect("send_request failed");
-   if debug_print {
+   if DEBUG_PRINT {
      println!("{:?}",response);
    }
    let resp2 : serde_json::Value = serde_json::from_str((*response.result.unwrap()).get()).unwrap(); 
@@ -65,7 +65,7 @@ impl MockGpioDevice {
     pub(crate) fn new(_ngpio: u16) -> Self {
         let rpc_client = client().unwrap();
         let resp = call(&rpc_client,"num_gpios",json!([""]));
-        if debug_print {
+        if DEBUG_PRINT {
           println!("{:?}",resp);
           }
         let ngpio2 : u16 = resp[1].as_u64().unwrap().try_into().unwrap() ;
@@ -73,7 +73,7 @@ impl MockGpioDevice {
         for i in 0..ngpio2 {
             let param = json!([i]);
             let resp = call(&rpc_client,"gpio_name",param);
-            if debug_print {
+            if DEBUG_PRINT {
               println!("{:?}",resp);
               }
 	    let name : String = resp[1].as_str().unwrap().into(); 
@@ -134,7 +134,7 @@ impl GpioDevice for MockGpioDevice {
             return self.direction_result;
         }
 	let resp = call(&self.rpc_client,"direction",json!([gpio]));
-	if debug_print {
+	if DEBUG_PRINT {
           println!("{:?}",resp);
           }
         let dir : u8 = resp[1].as_u64().unwrap().try_into().unwrap() ;
@@ -151,7 +151,7 @@ impl GpioDevice for MockGpioDevice {
             return self.set_direction_result;
         }
 	let resp = call(&self.rpc_client,"set_direction",json!([gpio,dir,value]));
-	if debug_print {
+	if DEBUG_PRINT {
           println!("{:?}",resp);
           }
         return Ok(());
@@ -162,7 +162,7 @@ impl GpioDevice for MockGpioDevice {
             return self.value_result;
         }
 	let resp = call(&self.rpc_client,"value",json!([gpio]));
-	if debug_print {
+	if DEBUG_PRINT {
           println!("{:?}",resp);
           }
         let val : u8 = resp[1].as_u64().unwrap().try_into().unwrap() ;
@@ -179,7 +179,7 @@ impl GpioDevice for MockGpioDevice {
             return self.set_value_result;
         }
 	let resp = call(&self.rpc_client,"set_value",json!([gpio,value]));
-	if debug_print {
+	if DEBUG_PRINT {
           println!("{:?}",resp);
           }
         return Ok(());
@@ -195,7 +195,7 @@ impl GpioDevice for MockGpioDevice {
             return self.set_irq_type_result;
         }
 	let resp = call(&self.rpc_client,"set_irq_type",json!([gpio,value]));
-	if debug_print {
+	if DEBUG_PRINT {
           println!("{:?}",resp);
           }
         return Ok(());
@@ -206,7 +206,7 @@ impl GpioDevice for MockGpioDevice {
             return self.wait_for_irq_result;
         }
 	let resp = call(&self.rpc_client,"wait_for_interrupt",json!([gpio]));
-	if debug_print {
+	if DEBUG_PRINT {
           println!("{:?}",resp);
           }
         let val : bool = resp[1].as_u64().unwrap() > 0;
